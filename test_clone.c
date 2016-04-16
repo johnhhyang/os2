@@ -59,7 +59,6 @@ int main(int argc, char **argv)
 
 	// Start all children
 	for (i=0; i<NUM_THREADS; i++) {
-		printf(1, "Clone is being called in test_clone.c\n");
 		pids[i] = clone(thread, args[i], stacks[i]);
 		printf(1, "main: created thread with pid %d\n", pids[i]);
 	}

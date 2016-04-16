@@ -315,11 +315,6 @@ texit(void *retval)
   if(proc == initproc)
     panic("init exiting");
 
-  if(!p->parent){
-    cprintf("texit was called by main thread, returning\n");
-    return -1;
-  }
-
   // Close all open files.
   for(fd = 0; fd < NOFILE; fd++){
     if(proc->ofile[fd]){
@@ -354,7 +349,6 @@ texit(void *retval)
         wakeup1(initproc);
     }
   }
-
   // Jump into the scheduler, never to return.
   proc->state = ZOMBIE;
   sched();
@@ -456,6 +450,7 @@ join(int joinPid, void **stack, void **retval)
 
         //copy address of return value into retval parameter
         *(int*)retval = pid;
+		cprintf("retval is %d inside clone\n", *(int*)retval);
         //copy address of user stack into parameter
         *(int*)stack = proc->stack;
         return pid;

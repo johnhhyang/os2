@@ -143,6 +143,7 @@ int myRetval;
 if(argint(0, &myRetval) < 0)
   return -1;
 
-return texit((void*)myRetval);
+texit((void*)myRetval);
+return;
 
 }
