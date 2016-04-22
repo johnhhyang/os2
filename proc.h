@@ -70,7 +70,11 @@ struct proc {
   //for Project 2
   int retval;
   int isthread;
-  int stack;                    //thread's stack address
+  int stack;                    // Thread's stack address
+
+  // Mutex stuff
+  int flags[32];                   // Mutex flags
+  int locks[32];                    // Mutex locks
 };
 
 // Process memory is laid out contiguously, low addresses first:

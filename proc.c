@@ -70,6 +70,13 @@ found:
   memset(p->context, 0, sizeof *p->context);
   p->context->eip = (uint)forkret;
 
+  // Setup mutex stuff
+  int iterate;
+  for(iterate = 0; iterate < 32; iterate++){
+  	p->locks[iterate] = 0;
+  	p->flags[iterate] = 0;
+  }
+
   return p;
 }
 
@@ -526,8 +533,9 @@ clone(void* function, void *arg, void *stack)
   struct proc *np;
 
   // Allocate process.
-  if((np = allocproc()) == 0)
+  if((np = allocproc()) == 0){
     return -1;
+}
 
   // reallocate old process's page table to new process
   np->pgdir = proc->pgdir;  
@@ -623,25 +631,66 @@ join(int passedPid, void **stack, void **retval)
 }
 
 
-int mutex_init()
+int mutex_init(void)
 {
+	int iterate;
+	for(iterate = 0; iterate < 32; iterate++){
+		//find an unused mutex
+		if(proc->flags[iterate] != 0)
+			continue;
+
+		//set this mutex as in use now
+		proc->flags[iterate] = 1;
+		//unlock the lock, this shouldn't be needed, but just in case ...?
+		proc->locks[iterate] = 0;
+		//return the mutex id
+		return iterate;
+	}
+
+	cprintf("mutex_init could not make new mutex. Out of free slots?\n");
 	return 0;
 }
 
 
 int mutex_destroy(int mutex_id)
 {
+	//set flag for this id so that it is unused
+	proc->flags[mutex_id] = 0;
 	return 0;
 }
 
 
 int mutex_lock(int mutex_id)
 {
-	return 0;
+	if(proc->flags[mutex_id] == 0)
+		panic("user is using uninitialized mutex for lock\n");
+
+	for(;;){
+
+		if(proc->locks[mutex_id] != 0)
+			sleep(proc, &ptable.lock);
+		else{
+			proc->locks[mutex_id] = 1;
+			return 1;
+		}
+	}
+
+		return 0;
 }
 
 
 int mutex_unlock(int mutex_id)
 {
+
+	if(proc->flags[mutex_id] == 0)
+		panic("user is using uninitalized mutex for unlock\n");
+
+	if(proc->locks[mutex_id] == 1){
+		wakeup1(proc);
+		proc->locks[mutex_id] = 0;
+		
+	}
+
+
 	return 0;
 }

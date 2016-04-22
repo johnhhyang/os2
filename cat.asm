@@ -1424,7 +1424,6 @@ int pthread_mutex_destroy(pthread_mutex_t *mutex){
  9a8:	89 e5                	mov    %esp,%ebp
  9aa:	83 ec 18             	sub    $0x18,%esp
 
-	//flag this mutex as destroyed
 	mutex_destroy(mutex->mid);
  9ad:	8b 45 08             	mov    0x8(%ebp),%eax
  9b0:	8b 40 04             	mov    0x4(%eax),%eax
