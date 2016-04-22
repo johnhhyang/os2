@@ -39,7 +39,7 @@ forktest(void)
   int n, pid;
 
   printf(1, "fork test\n");
-  2f:	c7 44 24 04 38 04 00 	movl   $0x438,0x4(%esp)
+  2f:	c7 44 24 04 58 04 00 	movl   $0x458,0x4(%esp)
   36:	00 
   37:	c7 04 24 01 00 00 00 	movl   $0x1,(%esp)
   3e:	e8 bd ff ff ff       	call   0 <printf>
@@ -83,7 +83,7 @@ forktest(void)
     printf(1, "fork claimed to work N times!\n", N);
   7e:	c7 44 24 08 e8 03 00 	movl   $0x3e8,0x8(%esp)
   85:	00 
-  86:	c7 44 24 04 44 04 00 	movl   $0x444,0x4(%esp)
+  86:	c7 44 24 04 64 04 00 	movl   $0x464,0x4(%esp)
   8d:	00 
   8e:	c7 04 24 01 00 00 00 	movl   $0x1,(%esp)
   95:	e8 66 ff ff ff       	call   0 <printf>
@@ -97,7 +97,7 @@ forktest(void)
   a4:	85 c0                	test   %eax,%eax
   a6:	79 19                	jns    c1 <forktest+0x98>
       printf(1, "wait stopped early\n");
-  a8:	c7 44 24 04 63 04 00 	movl   $0x463,0x4(%esp)
+  a8:	c7 44 24 04 83 04 00 	movl   $0x483,0x4(%esp)
   af:	00 
   b0:	c7 04 24 01 00 00 00 	movl   $0x1,(%esp)
   b7:	e8 44 ff ff ff       	call   0 <printf>
@@ -122,7 +122,7 @@ forktest(void)
   d0:	83 f8 ff             	cmp    $0xffffffff,%eax
   d3:	74 19                	je     ee <forktest+0xc5>
     printf(1, "wait got too many\n");
-  d5:	c7 44 24 04 77 04 00 	movl   $0x477,0x4(%esp)
+  d5:	c7 44 24 04 97 04 00 	movl   $0x497,0x4(%esp)
   dc:	00 
   dd:	c7 04 24 01 00 00 00 	movl   $0x1,(%esp)
   e4:	e8 17 ff ff ff       	call   0 <printf>
@@ -131,7 +131,7 @@ forktest(void)
   }
   
   printf(1, "fork test OK\n");
-  ee:	c7 44 24 04 8a 04 00 	movl   $0x48a,0x4(%esp)
+  ee:	c7 44 24 04 aa 04 00 	movl   $0x4aa,0x4(%esp)
   f5:	00 
   f6:	c7 04 24 01 00 00 00 	movl   $0x1,(%esp)
   fd:	e8 fe fe ff ff       	call   0 <printf>
@@ -693,6 +693,7 @@ SYSCALL(halt)
  41f:	c3                   	ret    
 
 00000420 <clone>:
+
 SYSCALL(clone)
  420:	b8 19 00 00 00       	mov    $0x19,%eax
  425:	cd 40                	int    $0x40
@@ -709,3 +710,26 @@ SYSCALL(texit)
  430:	b8 1b 00 00 00       	mov    $0x1b,%eax
  435:	cd 40                	int    $0x40
  437:	c3                   	ret    
+
+00000438 <mutex_init>:
+SYSCALL(mutex_init)
+ 438:	b8 1c 00 00 00       	mov    $0x1c,%eax
+ 43d:	cd 40                	int    $0x40
+ 43f:	c3                   	ret    
+
+00000440 <mutex_destroy>:
+SYSCALL(mutex_destroy)
+ 440:	b8 1d 00 00 00       	mov    $0x1d,%eax
+ 445:	cd 40                	int    $0x40
+ 447:	c3                   	ret    
+
+00000448 <mutex_lock>:
+SYSCALL(mutex_lock)
+ 448:	b8 1e 00 00 00       	mov    $0x1e,%eax
+ 44d:	cd 40                	int    $0x40
+ 44f:	c3                   	ret    
+
+00000450 <mutex_unlock>:
+ 450:	b8 1f 00 00 00       	mov    $0x1f,%eax
+ 455:	cd 40                	int    $0x40
+ 457:	c3                   	ret    

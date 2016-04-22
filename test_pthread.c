@@ -36,6 +36,7 @@ int main(int argc, char **argv)
 	// Args
 	int *args[NUM_THREADS];
 
+	//printf(1, "Meep\n");
 	// Allocate stacks and args and make sure we have them all
 	// Bail if something fails
 	for (i=0; i<NUM_THREADS; i++) {
@@ -48,6 +49,7 @@ int main(int argc, char **argv)
 		*args[i] = i;
 	}
 
+	//printf(1, "Meep2\n");
 	printf(1, "main: running with %d threads...\n", NUM_THREADS);
 
 	// Start all children
@@ -56,15 +58,18 @@ int main(int argc, char **argv)
 		printf(1, "main: created thread with pid %d\n", threads[i].pid);
 	}
 	
+	//printf(1, "Meep3\n");
 	// Wait for all children
 	for (i=0; i<NUM_THREADS; i++) {
 		void *retval;
 		int r;
 		r = pthread_join(threads[i], &retval);
 		if (r < 0) {
+			printf(1, "your return value for pthread_join is shit\n");
 			passed = 0;
 		}
 		if (*(int*)retval != i) {
+			printf(1, "your retval is shit\n");
 			passed = 0;
 		}
 		printf(1, "main: thread %d joined...retval=%d\n", i, *(int*)retval);

@@ -128,8 +128,6 @@ growproc(int n)
 int
 fork(void)
 {
-
-  cprintf("Inside fork function of proc.c\n");
   int i, pid;
   struct proc *np;
 
@@ -168,81 +166,6 @@ fork(void)
   return pid;
 }
 
-
-//======================================================
-
-/*
-clone(...) - This system call should behave as a lightweight version of fork(...). In particular, the
-system call should create a new OS process (struct proc) that has its own kernel stack and other
-structures, but shares the memory address space of the parent. When a user calls clone(...), they
-should provide a function for the thread to run, a single pointer to an argument, as well as a one-page
-region of memory to be used as a user stack. The clone(...) call should return the PID of the new
-thread to the parent, and immediately start execution of the function func in the new thread’s context.
-*/
-
-int
-clone(void* function, void *arg, void *stack)
-{
-  int i, pid;
-  struct proc *np;
-
-  // Allocate process.
-  if((np = allocproc()) == 0)
-    return -1;
-
-  np->sz = proc->sz;
-  // if the calling process is NOT a thread, copy it. Otherwise, copy its parent, the original caller
-  if (proc->isthread == 0) {
-    np->parent = proc;
-  }
-  else {
-    np->parent = proc->parent;
-  }
-  *np->tf = *proc->tf;
-
-  // Clear %eax so that fork returns 0 in the child.
-  np->tf->eax = 0;
-
-  // reallocate old process's page table to new process
-  np->pgdir = proc->pgdir;
-  // modified the return ip to thread function
-  np->tf->eip = (int)function;
-  // modified the thread indicator's value
-  np->isthread = 1;
-  // modified the stack
-  np->stack = (int)stack;
-  np->tf->esp = (int)stack + 4092; // move esp to the top of the new stack
-  *((int *)(np->tf->esp)) = (int)arg; // push the argument
-  *((int *)(np->tf->esp - 4)) = 0xFFFFFFFF; // push the return address
-  np->tf->esp -= 4;
-
-  for(i = 0; i < NOFILE; i++)
-    if(proc->ofile[i])
-      np->ofile[i] = filedup(proc->ofile[i]);
-  np->cwd = idup(proc->cwd);
-
-  safestrcpy(np->name, proc->name, sizeof(proc->name));
- 
-  pid = np->pid;
-
-  // lock to force the compiler to emit the np->state write last.
-  acquire(&ptable.lock);
-  np->state = RUNNABLE;
-  release(&ptable.lock);
-
-  // exit();
-  return pid;
-}
-
-
-
-
- //=========================================================================
-
-
-
-
-
 // Exit the current process.  Does not return.
 // An exited process remains in the zombie state
 // until its parent calls wait() to find out it exited.
@@ -274,21 +197,14 @@ exit(void)
   wakeup1(proc->parent);
 
   // Pass abandoned children to init.
+  // And kill the child threads and free their stacks
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
     if(p->parent == proc){
       p->parent = initproc;
-
-      //Kill and free the stacks of the child threads (if any)
-      if(p->isthread == 1){
-        p->state = UNUSED;
-        kfree(p->kstack);
-        p->kstack = 0;
-      }
-
       if(p->state == ZOMBIE)
         wakeup1(initproc);
     }
-  }
+  }   
 
   // Jump into the scheduler, never to return.
   proc->state = ZOMBIE;
@@ -296,19 +212,11 @@ exit(void)
   panic("zombie exit");
 }
 
-//=====================================
-
-/*
-texit(...) - This system call should behave similar to exit(), but takes a pointer that should 
-be passed to the caller of join(...).
-
-void texit(void *retval);
-
-*/
 
 void
 texit(void *retval)
 {
+  //cprintf("texit's retval parameter contains [%d]\n", retval);
   struct proc *p;
   int fd;
 
@@ -334,34 +242,28 @@ texit(void *retval)
   wakeup1(proc->parent);
 
   // Pass abandoned children to init.
+  // And kill the child threads and free their stacks
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
     if(p->parent == proc){
       p->parent = initproc;
-
-      //Kill and free the stacks of the child threads (if any)
+      // clean up the kernel stack of child threads
       if(p->isthread == 1){
         p->state = UNUSED;
         kfree(p->kstack);
         p->kstack = 0;
       }
-
       if(p->state == ZOMBIE)
         wakeup1(initproc);
     }
-  }
+  }   
+
   // Jump into the scheduler, never to return.
+  // Save the value of retval into proc so join can retrieve it later
+  proc->retval = (int)retval;
   proc->state = ZOMBIE;
   sched();
   panic("zombie exit");
 }
-
-
-
-
-//=====================================
-
-
-
 
 
 // Wait for a child process to exit and return its pid.
@@ -406,77 +308,6 @@ wait(void)
     sleep(proc, &ptable.lock);  //DOC: wait-sleep
   }
 }
-
-
-//=======================================================
-
-/*
-join(...) - This system call should behave similar to wait(), and cause the caller to sleep until the thread
-specified by the pid argument terminates. join(...) should return 0 on success (negative number if an
-error), as well as copy the address of the thread’s user stack and the return value (passed to texit(...))
-into the pointers provided as parameters.
-
-int join(int pid, void **stack, void **retval);
-*/
-
-int
-join(int joinPid, void **stack, void **retval)
-{
-  struct proc *p;
-  int havekids, pid;
-
-  acquire(&ptable.lock);
-  for(;;){
-
-    havekids = 0;
-    //iterate through the ptable to find zombies
-    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-      // only wait for the child thread, but not the child process of the pid given
-      if(p->parent != proc || p->isthread != 1 || p->parent->pid == joinPid)
-        continue;
-      havekids = 1;
-      //at this point, p is the process of the zombie
-      if(p->state == ZOMBIE){
-        // Found one, free its stack, make unused, etc
-        pid = p->pid;
-        kfree(p->kstack);
-        p->kstack = 0;
-        p->state = UNUSED;
-        p->pid = 0;
-        p->parent = 0;
-        p->name[0] = 0;
-        p->killed = 0;
-        release(&ptable.lock);
-
-        //copy address of return value into retval parameter
-        *(int*)retval = pid;
-		cprintf("retval is %d inside clone\n", *(int*)retval);
-        //copy address of user stack into parameter
-        *(int*)stack = proc->stack;
-        return pid;
-      }
-    }
-
-    // No point waiting if we don't have any children thread.
-    if(!havekids || proc->killed){
-      release(&ptable.lock);
-      //copy address of return value into retval parameter
-      *(int*)retval = -1;
-      //copy address of user stack into parameter
-      *(int*)stack = proc->stack;
-      return -1;
-    }
-
-    // Wait for children to exit.  (See wakeup1 call in proc_exit.)
-    sleep(proc, &ptable.lock);  //DOC: wait-sleep
-
-  }
-}
-
-//=======================================================
-
-
-
 
 //PAGEBREAK: 42
 // Per-CPU process scheduler.
@@ -686,4 +517,131 @@ procdump(void)
     }
     cprintf("\n");
   }
+}
+
+int
+clone(void* function, void *arg, void *stack)
+{
+  int i;
+  struct proc *np;
+
+  // Allocate process.
+  if((np = allocproc()) == 0)
+    return -1;
+
+  // reallocate old process's page table to new process
+  np->pgdir = proc->pgdir;  
+  // set size of process memory
+  np->sz = proc->sz;
+
+  // set parent of new process
+  if(proc->isthread == 0){
+  	np->parent = proc;
+  }
+  else{
+  	np->parent = proc->parent;
+  }
+
+  // copy the trapframe
+  *np->tf = *proc->tf;
+  // Clear %eax so that fork returns 0 in the child.
+  np->tf->eax = 0;
+  // modified the return ip to the given function parameter
+  np->tf->eip = (int)function;
+  // modified the thread indicator's value
+  np->isthread = 1;
+  // modified the stack to the given stack parameter 
+  np->stack = (int)stack;
+  // move esp to the top of the new stack
+  np->tf->esp = (int)stack + 4092; 
+  // push the argument
+  *((int *)(np->tf->esp)) = (int)arg; 
+  // push the return address
+  *((int *)(np->tf->esp - 4)) = 0xFFFFFFFF; 
+  // modify esp for the return address push
+  np->tf->esp -= 4;
+
+  for(i = 0; i < NOFILE; i++)
+    if(proc->ofile[i])
+      np->ofile[i] = filedup(proc->ofile[i]);
+  np->cwd = idup(proc->cwd);
+
+  safestrcpy(np->name, proc->name, sizeof(proc->name));
+ 
+  //pid = np->pid;
+
+  acquire(&ptable.lock);
+  np->state = RUNNABLE;
+  release(&ptable.lock);
+
+  // exit();
+  return np->pid;
+}
+
+
+int
+join(int passedPid, void **stack, void **retval)
+{
+  struct proc *p;
+  int havekids, pid;
+
+  acquire(&ptable.lock);
+  for(;;){
+    // Scan through table looking for zombie children.
+    havekids = 0;
+    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+      // only wait for the child thread, but not the child process
+      if(p->parent != proc || p->isthread != 1 || p->pid != passedPid)
+        continue;
+      havekids = 1;
+      if(p->state == ZOMBIE){
+        // Found one.
+        pid = p->pid;
+        kfree(p->kstack);
+        p->kstack = 0;
+        p->state = UNUSED;
+        p->pid = 0;
+        p->parent = 0;
+        p->name[0] = 0;
+        p->killed = 0;
+        release(&ptable.lock);
+        *(int*)retval = p->retval;
+        *(int*)stack = p->stack;
+        return pid;
+      }
+    }
+
+    // No point waiting if we don't have any children thread.
+    if(!havekids || proc->killed){
+      release(&ptable.lock);
+      return -1;
+    }
+
+    // Wait for children to exit.  (See wakeup1 call in proc_exit.)
+    sleep(proc, &ptable.lock);  //DOC: wait-sleep
+  }
+}
+
+
+int mutex_init()
+{
+	return 0;
+}
+
+
+int mutex_destroy(int mutex_id)
+{
+	return 0;
+}
+
+
+int mutex_lock(int mutex_id)
+{
+	return 0;
+}
+
+
+int mutex_unlock(int mutex_id)
+{
+	return 0;
 }

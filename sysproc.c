@@ -6,6 +6,7 @@
 #include "memlayout.h"
 #include "mmu.h"
 #include "proc.h"
+#include "pthread.h"
 
 int
 sys_fork(void)
@@ -146,4 +147,53 @@ if(argint(0, &myRetval) < 0)
 texit((void*)myRetval);
 return;
 
+}
+
+
+int 
+sys_mutex_init(void)
+{
+
+mutex_init();
+return 0;
+
+}
+
+
+int 
+sys_mutex_destroy(void)
+{
+  int myMutexID;
+
+  if(argint(0, &myMutexID) < 0)
+    return -1;
+
+  mutex_destroy((int)myMutexID);
+  return 0;
+}
+
+
+int 
+sys_mutex_lock(void)
+{
+  int myMutexID;
+
+  if(argint(0, &myMutexID) < 0)
+    return -1;
+
+  mutex_lock((int)myMutexID);
+  return 0;
+}
+
+
+int 
+sys_mutex_unlock(void)
+{
+  int myMutexID;
+
+  if(argint(0, &myMutexID) < 0)
+    return -1;
+
+  mutex_unlock((int)myMutexID);
+  return 0;
 }

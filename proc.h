@@ -68,8 +68,9 @@ struct proc {
   char name[16];               // Process name (debugging)
 
   //for Project 2
+  int retval;
   int isthread;
-  int stack;
+  int stack;                    //thread's stack address
 };
 
 // Process memory is laid out contiguously, low addresses first:
